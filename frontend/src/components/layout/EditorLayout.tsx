@@ -189,6 +189,9 @@ export const EditorLayout: React.FC = () => {
         }
     };
 
+    const canvasImageProps: ImageMetadata | null =
+        image && activeImageUrl ? { ...image, url: activeImageUrl } : null;
+
     return (
         <div className="h-screen w-screen flex flex-col bg-zinc-950 overflow-hidden font-sans">
             <EditorHeader imageName={image?.name} />
@@ -211,7 +214,7 @@ export const EditorLayout: React.FC = () => {
                 <ToolSidebar activeTool={activeTool} onSelectTool={handleSelectTool} />
 
                 <ImageCanvas
-                    image={image ? { ...image, url: activeImageUrl } : null}
+                    image={canvasImageProps}
                     zoom={zoom}
                     adjustments={currentState.adjustments}
                     transforms={currentState.transforms}
