@@ -1,6 +1,10 @@
+import os
+import uvicorn
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+
+# Import your image processing functions
 from services.image_processor import (
     decode_image,
     encode_image,
@@ -123,5 +127,7 @@ async def watermark_endpoint(
     return Response(content=result_bytes, media_type="image/png")
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    # Fetch port from environment variables (Render assigns this dynamically)
+    port = int(os.environ.get("PORT", 8000))
+    # Bind to 0.0.0.0 so external health checks can reach the service
+    uvicorn.run(app, host="0.0.0.0", port=port)
