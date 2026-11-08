@@ -189,6 +189,7 @@ export const EditorLayout: React.FC = () => {
         }
     };
 
+    // Explicit type narrowing guarantees url is string when canvasImageProps is non-null
     const canvasImageProps: ImageMetadata | null =
         image && activeImageUrl ? { ...image, url: activeImageUrl } : null;
 

@@ -7,7 +7,7 @@ import { getCssFilterString } from '@/lib/image-utils';
 import { EmptyCanvas } from './EmptyCanvas';
 import { CropOverlay, CropRect } from '../tools/crop/CropOverlay';
 
-interface ImageCanvasProps {
+export interface ImageCanvasProps {
     image: ImageMetadata | null;
     zoom: number;
     adjustments: AdjustmentValues;
@@ -17,6 +17,7 @@ interface ImageCanvasProps {
     cropRect: CropRect;
     onChangeCropRect: (rect: CropRect) => void;
     aspectRatio: number | null;
+    isProcessing?: boolean;
     onUploadClick: () => void;
 }
 
@@ -30,6 +31,7 @@ export const ImageCanvas: React.FC<ImageCanvasProps> = ({
     cropRect,
     onChangeCropRect,
     aspectRatio,
+    isProcessing = false,
     onUploadClick,
 }) => {
     if (!image) {
@@ -60,13 +62,23 @@ export const ImageCanvas: React.FC<ImageCanvasProps> = ({
                     className="max-h-[70vh] w-auto object-contain block"
                 />
 
-                {/* Mouse Drag Interactive Crop Overlay Container */}
+                {/* Interactive Mouse Drag Crop Overlay */}
                 {isCropActive && (
                     <CropOverlay
                         cropRect={cropRect}
                         onChangeCropRect={onChangeCropRect}
                         aspectRatio={aspectRatio}
                     />
+                )}
+
+                {/* Backend AI Loading Overlay */}
+                {isProcessing && (
+                    <div className="absolute inset-0 bg-zinc-950/70 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-40">
+                        <div className="w-9 h-9 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs font-semibold text-zinc-200">
+                            Processing image via OpenCV Backend...
+                        </span>
+                    </div>
                 )}
             </div>
         </main>
