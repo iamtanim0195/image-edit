@@ -112,20 +112,38 @@ def add_text_watermark(
     opacity: float = 0.8,
     position: str = "bottom-right"
 ) -> bytes:
-    """Overlays styled text or watermark onto an image using Pillow."""
+    """Overlays styled text or watermark onto an image using Pillow (Cross-Platform)."""
     pil_img = Image.open(io.BytesIO(img_bytes)).convert("RGBA")
     txt_layer = Image.new("RGBA", pil_img.size, (255, 255, 255, 0))
     draw = ImageDraw.Draw(txt_layer)
 
-    try:
-        font = ImageFont.truetype("arial.ttf", font_size)
-    except IOError:
+    # Cross-platform font loader with fallback order for Windows & Linux
+    font = None
+    font_candidates = [
+        "arial.ttf",
+        "DejaVuSans.ttf",
+        "DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+        "FreeSans.ttf"
+    ]
+
+    for font_path in font_candidates:
+        try:
+            font = ImageFont.truetype(font_path, font_size)
+            break
+        except (IOError, OSError):
+            continue
+
+    if font is None:
+        # Fallback if no TTF font is found on the operating system
         font = ImageFont.load_default()
 
     hex_color = color_hex.lstrip('#')
     r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
     alpha = int(opacity * 255)
 
+    # Calculate text bounding box
     bbox = draw.textbbox((0, 0), text, font=font)
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
@@ -142,7 +160,7 @@ def add_text_watermark(
         x, y = img_w - text_w - margin, margin
     elif position == "bottom-left":
         x, y = margin, img_h - text_h - margin
-    else:
+    else:  # bottom-right
         x, y = img_w - text_w - margin, img_h - text_h - margin
 
     draw.text((x, y), text, font=font, fill=(r, g, b, alpha))
