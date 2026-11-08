@@ -189,9 +189,18 @@ export const EditorLayout: React.FC = () => {
         }
     };
 
-    // Explicit type narrowing guarantees url is string when canvasImageProps is non-null
+    // Explicit type guard ensures url is strictly typed as string
     const canvasImageProps: ImageMetadata | null =
-        image && activeImageUrl ? { ...image, url: activeImageUrl } : null;
+        image && activeImageUrl
+            ? {
+                name: image.name,
+                width: image.width,
+                height: image.height,
+                sizeBytes: image.sizeBytes,
+                type: image.type,
+                url: activeImageUrl,
+            }
+            : null;
 
     return (
         <div className="h-screen w-screen flex flex-col bg-zinc-950 overflow-hidden font-sans">
