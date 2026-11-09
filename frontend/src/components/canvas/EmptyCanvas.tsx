@@ -19,13 +19,13 @@ export const EmptyCanvas: React.FC<EmptyCanvasProps> = ({ onUploadClick }) => {
                 Drag and drop your JPG, PNG, or WebP photo here, or select a file from your computer to start editing.
             </p>
 
-            <button
+            {/*   <button
                 onClick={onUploadClick}
                 className="flex items-center gap-2 px-5 py-2.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-lg shadow-indigo-600/20 cursor-pointer"
             >
                 <ImageIcon className="w-4 h-4" />
                 <span>Select Image File</span>
-            </button>
+            </button> */}
 
             <div className="mt-8 flex items-center gap-4 text-[11px] text-zinc-500">
                 <span>Supported: JPG, PNG, WebP</span>
