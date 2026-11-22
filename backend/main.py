@@ -4,7 +4,6 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
-# Import your image processing functions
 from services.image_processor import (
     decode_image,
     encode_image,
@@ -14,12 +13,13 @@ from services.image_processor import (
     reduce_blur,
     remove_artifacts,
     invert_image_colors,
-    remove_background_by_color,
-    replace_background_color,
+    ai_remove_background,
+    ai_replace_background,
+    ai_blur_background,
     add_text_watermark,
 )
 
-app = FastAPI(title="Pixel Studio Processing Engine", version="1.0.0")
+app = FastAPI(title="Pixel Studio Processing Engine", version="1.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,7 +39,7 @@ def read_root():
 async def enhance_endpoint(
     file: UploadFile = File(...),
     mode: str = Form("auto"),
-    strength: float = Form(10.0)
+    strength: float = Form(10.0),
 ):
     contents = await file.read()
     img = decode_image(contents)
@@ -62,7 +62,7 @@ async def enhance_endpoint(
 @app.post("/api/restore")
 async def restore_endpoint(
     file: UploadFile = File(...),
-    mode: str = Form("noise")
+    mode: str = Form("noise"),
 ):
     contents = await file.read()
     img = decode_image(contents)
@@ -86,23 +86,22 @@ async def restore_endpoint(
 async def background_endpoint(
     file: UploadFile = File(...),
     action: str = Form("remove"),
-    target_color: str = Form("#FFFFFF"),
-    new_color: str = Form("#000000"),
-    tolerance: int = Form(30)
+    new_color: str = Form("#4F46E5"),
+    blur_strength: int = Form(25),
 ):
     contents = await file.read()
-    img = decode_image(contents)
-    if img is None:
-        raise HTTPException(status_code=400, detail="Invalid image file")
 
     if action == "remove":
-        processed = remove_background_by_color(
-            img, hex_color=target_color, tolerance=tolerance)
+        result_bytes = ai_remove_background(contents)
+    elif action == "replace":
+        result_bytes = ai_replace_background(contents, new_bg_hex=new_color)
+    elif action == "blur":
+        result_bytes = ai_blur_background(
+            contents, blur_strength=blur_strength)
     else:
-        processed = replace_background_color(
-            img, target_hex=target_color, new_bg_hex=new_color, tolerance=tolerance)
+        raise HTTPException(
+            status_code=400, detail="Unsupported background action")
 
-    result_bytes = encode_image(processed, format_ext=".png")
     return Response(content=result_bytes, media_type="image/png")
 
 
@@ -113,7 +112,7 @@ async def watermark_endpoint(
     font_size: int = Form(36),
     color: str = Form("#FFFFFF"),
     opacity: float = Form(0.8),
-    position: str = Form("bottom-right")
+    position: str = Form("bottom-right"),
 ):
     contents = await file.read()
     result_bytes = add_text_watermark(
@@ -122,12 +121,11 @@ async def watermark_endpoint(
         font_size=font_size,
         color_hex=color,
         opacity=opacity,
-        position=position
+        position=position,
     )
     return Response(content=result_bytes, media_type="image/png")
 
+
 if __name__ == "__main__":
-    # Fetch port from environment variables (Render assigns this dynamically)
     port = int(os.environ.get("PORT", 8000))
-    # Bind to 0.0.0.0 so external health checks can reach the service
     uvicorn.run(app, host="0.0.0.0", port=port)

@@ -100,11 +100,11 @@ export const EditorLayout: React.FC = () => {
         }
     };
 
-    const handleRemoveBg = async (targetColor: string, tolerance: number) => {
+    const handleRemoveBg = async () => {
         if (!activeImageUrl) return;
         setIsBackendProcessing(true);
         try {
-            const resultUrl = await processBackgroundApi(activeImageUrl, 'remove', targetColor, '#000000', tolerance);
+            const resultUrl = await processBackgroundApi(activeImageUrl, 'remove');
             pushState({ processedUrl: resultUrl });
         } catch (e) {
             console.error('Background removal error:', e);
@@ -113,14 +113,26 @@ export const EditorLayout: React.FC = () => {
         }
     };
 
-    const handleReplaceBg = async (targetColor: string, newColor: string, tolerance: number) => {
+    const handleReplaceBg = async (newColor: string) => {
         if (!activeImageUrl) return;
         setIsBackendProcessing(true);
         try {
-            const resultUrl = await processBackgroundApi(activeImageUrl, 'replace', targetColor, newColor, tolerance);
+            const resultUrl = await processBackgroundApi(activeImageUrl, 'replace', newColor);
             pushState({ processedUrl: resultUrl });
         } catch (e) {
             console.error('Background replace error:', e);
+        } finally {
+            setIsBackendProcessing(false);
+        }
+    };
+    const handleBlurBg = async (blurStrength: number) => {
+        if (!activeImageUrl) return;
+        setIsBackendProcessing(true);
+        try {
+            const resultUrl = await processBackgroundApi(activeImageUrl, 'blur', '#000000', blurStrength);
+            pushState({ processedUrl: resultUrl });
+        } catch (e) {
+            console.error('Background blur error:', e);
         } finally {
             setIsBackendProcessing(false);
         }
@@ -288,6 +300,7 @@ export const EditorLayout: React.FC = () => {
                         <BackgroundPanel
                             onRemoveBackground={handleRemoveBg}
                             onReplaceBackground={handleReplaceBg}
+                            onBlurBackground={handleBlurBg}
                             isProcessing={isBackendProcessing}
                         />
                     )}

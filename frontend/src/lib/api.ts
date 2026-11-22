@@ -47,18 +47,16 @@ export async function processRestorationApi(
 
 export async function processBackgroundApi(
     imageUrl: string,
-    action: 'remove' | 'replace',
-    targetColor: string,
-    newColor: string = '#000000',
-    tolerance: number = 30
+    action: 'remove' | 'replace' | 'blur',
+    newColor: string = '#4F46E5',
+    blurStrength: number = 25
 ): Promise<string> {
     const blob = await fetchBlobFromDataUrl(imageUrl);
     const formData = new FormData();
     formData.append('file', blob, 'image.png');
     formData.append('action', action);
-    formData.append('target_color', targetColor);
     formData.append('new_color', newColor);
-    formData.append('tolerance', tolerance.toString());
+    formData.append('blur_strength', blurStrength.toString());
 
     const response = await fetch(`${API_BASE_URL}/api/background`, {
         method: 'POST',
