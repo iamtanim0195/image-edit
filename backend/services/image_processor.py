@@ -4,8 +4,25 @@ from PIL import Image, ImageDraw, ImageFont
 from rembg import remove, new_session
 import io
 
-# Initialize lightweight U2-NetP session (uses ~4MB model, prevents Out-Of-Memory on Render Free Tier)
-REMBG_SESSION = new_session("u2netp")
+# Lazy-loaded session so Render starts fast and stays within 512MB RAM
+_REMBG_SESSION = None
+
+
+def get_rembg_session():
+    global _REMBG_SESSION
+    if _REMBG_SESSION is None:
+        _REMBG_SESSION = new_session("u2netp")
+    return _REMBG_SESSION
+
+
+def _resize_for_ai(pil_img: Image.Image, max_dim: int = 1024) -> Image.Image:
+    """Downscales very large images before AI segmentation to prevent Render 512MB RAM OOM."""
+    w, h = pil_img.size
+    if max(w, h) <= max_dim:
+        return pil_img
+    scale = max_dim / float(max(w, h))
+    new_size = (int(w * scale), int(h * scale))
+    return pil_img.resize(new_size, Image.Resampling.LANCZOS)
 
 
 def decode_image(image_bytes: bytes) -> np.ndarray:
@@ -65,14 +82,25 @@ def invert_image_colors(img: np.ndarray) -> np.ndarray:
 def ai_remove_background(image_bytes: bytes) -> bytes:
     """Uses AI U2-NetP segmentation to detect people/subjects and output a transparent PNG."""
     input_pil = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
-    output_pil = remove(input_pil, session=REMBG_SESSION)
+    orig_size = input_pil.size
+    resized_pil = _resize_for_ai(input_pil, max_dim=1024)
+
+    output_pil = remove(resized_pil, session=get_rembg_session())
+    if output_pil.size != orig_size:
+        output_pil = output_pil.resize(orig_size, Image.Resampling.LANCZOS)
+
     return encode_pil_image(output_pil, format_str="PNG")
 
 
 def ai_replace_background(image_bytes: bytes, new_bg_hex: str = "#4F46E5") -> bytes:
     """Removes background via AI and composites the subject onto a solid color background."""
     input_pil = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
-    fg_pil = remove(input_pil, session=REMBG_SESSION)
+    orig_size = input_pil.size
+    resized_pil = _resize_for_ai(input_pil, max_dim=1024)
+
+    fg_pil = remove(resized_pil, session=get_rembg_session())
+    if fg_pil.size != orig_size:
+        fg_pil = fg_pil.resize(orig_size, Image.Resampling.LANCZOS)
 
     new_bg_hex = new_bg_hex.lstrip("#")
     r, g, b = tuple(int(new_bg_hex[i: i + 2], 16) for i in (0, 2, 4))
@@ -84,21 +112,22 @@ def ai_replace_background(image_bytes: bytes, new_bg_hex: str = "#4F46E5") -> by
 
 def ai_blur_background(image_bytes: bytes, blur_strength: int = 25) -> bytes:
     """Creates a DSLR Portrait Bokeh effect by blurring the background while keeping the person sharp."""
-    # Ensure kernel size is odd and >= 3
     ksize = max(3, blur_strength if blur_strength %
                 2 == 1 else blur_strength + 1)
 
-    # 1. Extract foreground mask via AI
     input_pil = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
-    fg_pil = remove(input_pil, session=REMBG_SESSION)
-    fg_np = np.array(fg_pil)  # RGBA
+    orig_size = input_pil.size
+    resized_pil = _resize_for_ai(input_pil, max_dim=1024)
 
-    # 2. Decode original image in OpenCV for fast Gaussian blur
+    fg_pil = remove(resized_pil, session=get_rembg_session())
+    if fg_pil.size != orig_size:
+        fg_pil = fg_pil.resize(orig_size, Image.Resampling.LANCZOS)
+    fg_np = np.array(fg_pil)
+
     orig_bgr = decode_image(image_bytes)
     blurred_bgr = cv2.GaussianBlur(orig_bgr, (ksize, ksize), 0)
     blurred_rgb = cv2.cvtColor(blurred_bgr, cv2.COLOR_BGR2RGB)
 
-    # 3. Alpha blend sharp foreground over blurred background
     alpha = fg_np[:, :, 3:4].astype(np.float32) / 255.0
     fg_rgb = fg_np[:, :, :3].astype(np.float32)
     bg_rgb = blurred_rgb.astype(np.float32)
